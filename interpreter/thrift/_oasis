@@ -17,13 +17,6 @@ Library flowlog_thrift
   Modules: Flowlog_rpc_consts,BlackBox,FlowLogInterpreter
   XMETARequires: threads
 
-Executable TestBB
-  Path: .
-  MainIs: testBB.ml
-  Build$: true
-  CompiledObject: best
-  BuildDepends: thrift, flowlog_thrift, threads
-
 Executable o2warning
   Path: .
   MainIs: o2warning.ml
@@ -38,7 +31,6 @@ Executable notify
   CompiledObject: best
   BuildDepends: thrift, flowlog_thrift, threads, str
 
-
 Executable Timer
   Path: .
   MainIs: timer.ml
@@ -46,9 +38,10 @@ Executable Timer
   CompiledObject: best
   BuildDepends: thrift, flowlog_thrift, threads
 
-Executable TestFL
+Executable Police_Tipline
   Path: .
-  MainIs: testFL.ml
+  MainIs: police_tipline.ml
   Build$: true
   CompiledObject: best
   BuildDepends: thrift, flowlog_thrift, threads
+
