@@ -132,11 +132,15 @@ module Communication = struct
 		                else []) in
 		List.map (fun (l : string list) -> List.map (fun str -> Types.Constant(str)) l) answer;;
 
+    (* extract the variables from a list of terms *)
+    let get_variables_among_terms (terms : Types.term list): Types.term list =
+      List.filter (function 
+	    | Types.Variable(_) -> true
+		| Types.Field_ref(_, _) -> true
+		| Types.Constant(_) -> false) terms
+
 	let send_relation (rel : Types.relation) (args : Types.term list) (process : string -> string -> string) : (Types.term list) list =
-		let vars = List.filter (function 
-			| Types.Variable(_) -> true;
-			| Types.Field_ref(_, _) -> true;
-			| Types.Constant(_) -> false;) args in
+		let vars = get_variables_among_terms args in
 		let args_string = (Type_Helpers.list_to_string Type_Helpers.term_to_string args)  in
 		let str = (match rel with
 		| Types.PlusRelation(name, _, _) -> process ("+" ^ name) args_string;
@@ -146,29 +150,40 @@ module Communication = struct
 		if debug then print_endline ("sending: " ^ str);
 		send_message str (List.length vars);;
 
+    (* what are the query atoms in this clause? *)
 	let get_queries (cls : Types.clause) : Types.atom list =
-		List.fold (fun lit acc -> 
+		List.fold_right (fun lit acc -> 
 			let a = Type_Helpers.get_atom lit in
 			match a with
 			| Types.Query(_, _, _) -> a :: acc;
 			| _ -> acc;) (Type_Helpers.clause_body cls) [];;
 
-	let assert_queries (qs : (atom * string list list) list) : unit =
-		List.iter (function (q, ans) -> match q with
-			| Types.Query(bb, str, tl) -> List.iter (fun sl -> send_message ("assert((" ^ str ^ "/" ^ (Types.blackbox_name bb) ^ "(" ^ (Type_Helpers.list_to_string (fun x -> x) sl) ^ ")))." )) ans;
+    (* populate helper relation for FL evaluation. we've got the answer from thrift already 
+       therefore we have a list of tuples (as string lists) for each atom. *)
+	let assert_or_retract_queries (qs : (Types.atom * ((string list) list)) list) (straction: string): unit =	
+		List.iter (function (queryatom, ans) -> match queryatom with
+			| Types.Query(bb, str, tl) -> List.iter (fun atuple -> 
+				                             let vars = get_variables_among_terms tl in 
+				                               ignore (send_message (straction^"((" ^ str ^ "/" ^ 
+				                               (Type_Helpers.blackbox_name bb) ^ "(" ^ 
+				                               (Type_Helpers.list_to_string (fun x -> x) atuple) ^ ")))." ) (List.length vars)); ()) ans;
 			| _ -> raise (Failure "only queries allowed here");) qs;;
 
-	let assert_queries (qs : (atom * string list list) list) : unit =
-		List.iter (function (q, ans) -> match q with
-			| Types.Query(bb, str, tl) -> List.iter (fun sl -> send_message ("retract((" ^ str ^ "/" ^ (Types.blackbox_name bb) ^ "(" ^ (Type_Helpers.list_to_string (fun x -> x) sl) ^ ")))." )) ans;
-			| _ -> raise (Failure "only queries allowed here");) qs;;
+	(* don't duplicate the enormous string construction code *)
+	let assert_queries (qs : (Types.atom * string list list) list) : unit =
+		assert_or_retract_queries qs "assert";;
 
+	let retract_queries (qs : (Types.atom * string list list) list) : unit =
+		assert_or_retract_queries qs "retract";;
 
 	let query_relation (rel : Types.relation) (args : Types.argument list) : (Types.term list) list = 
-		let queries = List.fold(fun cls acc -> (get_queries cls) @ acc) (Type_Helpers.relation_body rel) in
+	    (* BB query atoms referenced in any clause of the relation. relation body is a clause list *)
+		let queries = List.fold_right (fun cls acc -> (get_queries cls) @ acc) (Type_Helpers.relation_body rel) [] in
+		(* call thrift and obtain results as (query-term list-of-list-of-string) pair *)
 		let query_answers = List.map (fun q -> match q with 
-			| Types.Query(bb, str, tl) -> (q, Flowlog_Thrift_Out.doBBquery bb q);
-			| _ -> raise (Failure "this is only for queries");) queries in
+			| Types.Query(bb, str, tl) -> (q, Flowlog_Thrift_Out.doBBquery bb q); 
+			| _ -> raise (Failure "this is only for queries")) 
+		                      queries in
 		assert_queries query_answers;
 		let ans = send_relation rel (Type_Helpers.arguments_to_terms args) (fun name args_string -> name ^ "(" ^ args_string ^ ").") in
 		retract_queries query_answers;
