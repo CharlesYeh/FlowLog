@@ -1,2 +1,29 @@
-Examples illustrating how queries will be evalutated.
+Example:
 
+import Mac_Learning;
+blackbox BBox1;
+blackbox BBox2;
+
+helper(X, Y) :- X = 1, Y=2;
+
+forward(pkt : packet, nwpkt : packet) :-
+helper(pkt.locSw, nwpkt.locSw),
+BBox1.foo(pkt.locPt, X),
+BBox2.bar(X, nwpkt.locPt),
+Mac_Learning.forward(pkt, nwpkt).
+
+In order to evaluate this we need to have all tuples from BBox1.foo(pkt.locPt, X) in xsb
+and also for each such X we need BBox2.bar(X, nwpkt.locPt) in xsb. In general, we go through each blackbox
+query and for each one we figure out what the input arguments are (i.e. all of its inputs that have appeared
+previously in the clause) and then make a new clause with the original arguments with these extra ones on the end.
+Then we query the inputs of the original clause in this new clause and find the values of the input variables to the black box. Then we query the black box via thrift and input the answers into xsb. After the black box info is
+in xsb, do the actual query. After that remove all of the black box info. Tada!
+
+In this example, that means we do the following.
+
+assert_clause: clause_1(pkt : packet, nwpkt : packet, var) :-
+helper(pkt.locSw, nwpkt.locSw), var = pkt.locPt;
+
+query_clause: clause_1(actual_pkt, nwpkt_var, )
+
+NO ITS A BIT MORE COMPLICATED BECAUSE OF NW_PKT
