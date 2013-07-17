@@ -24,7 +24,12 @@ let connect ~host port =
     { trans = tx ; proto = proto; fl = fl}
 ;;
 
-if (Array.length Sys.argv) < 2 then failwith "Did not give a notification type."
+if (Array.length Sys.argv) < 2 then 
+begin
+  Printf.printf "notify <notif type name> [argument-name=value] ...\n%!";
+  exit(1)
+end;;
+
 let notifname = Sys.argv.(1);;
 let numargs = (Array.length Sys.argv) - 2;;
 Printf.printf "Notif type: %s\nNumber args: %d\n%!" notifname numargs;;

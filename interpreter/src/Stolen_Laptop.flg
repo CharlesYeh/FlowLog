@@ -6,6 +6,10 @@
 blackbox BBtimer @ 127.0.0.1 9091;
 blackbox BBpolice @ 127.0.0.1 5050; // (The 5-0)
 
+// IMPORTANT: when reporting a laptop stolen, need to convert mac to a number. 
+// e.g. notify stolen_laptop_report mac=1
+// to report 00:00:00:00:00:01 stolen. we don't convert types yet.
+
 // Should get all notifs declared in Canary (and in Mac_Learning since Canary imports Mac_Learning)
 import Mac_Learning;
 
