@@ -94,7 +94,7 @@ module Xsb = struct
 	(* Takes a string query (thing with semicolon answers), the number of variables involved.
 	 It writes the query to xsb and returns a list of lists with all of the results. *)
 	let send_query (str : string) (num_vars : int) : (string list) list =
-	    if debug then Printf.printf "send_query: %s %d\n%!" str num_vars;
+	    if debug then Printf.printf "send_query: %s (%d vars)\n%!" str num_vars;
 		let out_ch, in_ch = get_ch () in
 		output_string out_ch (str ^ "\n");
 		flush out_ch;
@@ -112,7 +112,9 @@ module Xsb = struct
 			counter := !counter + 1;
 			next_str := input_line in_ch;
 			answer := (remove_from_end (String.trim !next_str) "no") :: !answer;
+			(* TODO Beware: if num_vars is wrong, this will freeze. Can we improve? *)
 		done;
+		if debug then Printf.printf "send_query done.\n%!";
 		List.map (fun (l : string list) -> List.map after_equals l) (group (List.rev !answer) num_vars);;
 
 end
@@ -151,7 +153,7 @@ module Communication = struct
 		send_message str (List.length vars);;
 
     (* what are the query atoms in this clause? *)
-	let get_queries (cls : Types.clause) : Types.atom list =
+	let get_bbqueries (cls : Types.clause) : Types.atom list =
 		List.fold_right (fun lit acc -> 
 			let a = Type_Helpers.get_atom lit in
 			match a with
@@ -162,11 +164,10 @@ module Communication = struct
        therefore we have a list of tuples (as string lists) for each atom. *)
 	let assert_or_retract_queries (qs : (Types.atom * ((string list) list)) list) (straction: string): unit =	
 		List.iter (function (queryatom, ans) -> match queryatom with
-			| Types.Query(bb, str, tl) -> List.iter (fun atuple -> 
-				                             let vars = get_variables_among_terms tl in 
+			| Types.Query(bb, str, tl) -> List.iter (fun atuple -> 				                             
 				                               ignore (send_message (straction^"((" ^ str ^ "/" ^ 
 				                               (Type_Helpers.blackbox_name bb) ^ "(" ^ 
-				                               (Type_Helpers.list_to_string (fun x -> x) atuple) ^ ")))." ) (List.length vars)); ()) ans;
+				                               (Type_Helpers.list_to_string (fun x -> x) atuple) ^ ")))." ) 0); ()) ans;
 			| _ -> raise (Failure "only queries allowed here");) qs;;
 
 	(* don't duplicate the enormous string construction code *)
@@ -178,15 +179,18 @@ module Communication = struct
 
 	let query_relation (rel : Types.relation) (args : Types.argument list) : (Types.term list) list = 
 	    (* BB query atoms referenced in any clause of the relation. relation body is a clause list *)
-		let queries = List.fold_right (fun cls acc -> (get_queries cls) @ acc) (Type_Helpers.relation_body rel) [] in
+		let queries = List.fold_right (fun cls acc -> (get_bbqueries cls) @ acc) (Type_Helpers.relation_body rel) [] in
+		if debug then Printf.printf "  query_relation called. %d query atoms to handle.\n%!" (List.length queries);		          
 		(* call thrift and obtain results as (query-term list-of-list-of-string) pair *)
 		let query_answers = List.map (fun q -> match q with 
 			| Types.Query(bb, str, tl) -> (q, Flowlog_Thrift_Out.doBBquery bb q); 
 			| _ -> raise (Failure "this is only for queries")) 
 		                      queries in
+
 		assert_queries query_answers;
 		let ans = send_relation rel (Type_Helpers.arguments_to_terms args) (fun name args_string -> name ^ "(" ^ args_string ^ ").") in
 		retract_queries query_answers;
+		if debug then Printf.printf "  query_relation done handling BB query.\n%!";		          
 		ans;;
 
 (*
