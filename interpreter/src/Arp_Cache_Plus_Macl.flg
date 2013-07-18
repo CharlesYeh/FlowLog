@@ -24,6 +24,7 @@ pkt.dlTyp = 0x0806,
 pkt.nwProto = "arp", // change in what ox gives us. now says arp? better have different one for reply!!!
 not cache( pkt.nwSrc, any),
 newpkt.locSw = pkt.locSw,
+Mac_Learning.switch_has_port(pkt.locSw, newpkt.locPt), // REQUIRED: manual invocation for now
 not newpkt.locPt = pkt.locPt;
 
 // modify request into reply if we know the mac address.
