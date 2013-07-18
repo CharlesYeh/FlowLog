@@ -28,8 +28,8 @@ module Controller_Forwarding = struct
 
     let handle_arp_nwproto (parsedpk : Packet.packet) : int = 
       match parsedpk.nw with (* fail if ever anything else *)
-        | Arp(Arp.Query (_, ip, _)) -> 1
-        | Arp(Arp.Reply (_, ip, _, _)) -> 2
+        | Arp(Arp.Query (_, _, _)) -> 1
+        | Arp(Arp.Reply (_, _, _, _)) -> 2
         | _ -> failwith "handle_arp_nwproto: expected arp query or reply.";;
 
 	let pkt_to_notif (sw : switchId) (pk : packetIn) : Types.notif_val = 

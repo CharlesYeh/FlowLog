@@ -4,41 +4,43 @@ module Arp_Cache_Plus_Macl:
 
 // No mobility support here: once learned, always learned.
 +cache(pkt : packet, ip, mac ) :- 
-pkt.dlTyp = 0x0806, pkt.nwProto = 2, // arp reply 
-// why was this line here to begin with?
-not cache( pkt.nwSrc, any),
-ip = pkt.nwSrc, mac = pkt.dlSrc;
+  pkt.dlTyp = 0x0806, pkt.nwProto = 2, // arp reply 
+  // why was this line here to begin with?
+  //not cache( pkt.nwSrc, any),
+  ip = pkt.nwSrc, mac = pkt.dlSrc;
 
 // Propagate all arp replies via flooding.
 forward(pkt : packet, newpkt  : packet) :-
-pkt.dlTyp = 0x0806,
-pkt.nwProto = 2,
-newpkt.locSw = pkt.locSw,
-Mac_Learning.switch_has_port(pkt.locSw, newpkt.locPt), // REQUIRED: manual invocation for now
-not pkt.locPt = newpkt.locPt;
+  pkt.dlTyp = 0x0806,
+  pkt.nwProto = 2,
+  newpkt.locSw = pkt.locSw,
+  Mac_Learning.switch_has_port(pkt.locSw, newpkt.locPt), // REQUIRED: manual invocation for now
+  not pkt.locPt = newpkt.locPt;
 
 // Propagate all arp requests for unlearned addresses
 // note this rule is split vs. what appeared in hotsdn
 forward(pkt : packet, newpkt  : packet) :-
-pkt.dlTyp = 0x0806,
-pkt.nwProto = 1, 
-not cache( pkt.nwSrc, any),
-newpkt.locSw = pkt.locSw,
-Mac_Learning.switch_has_port(pkt.locSw, newpkt.locPt), // REQUIRED: manual invocation for now
-not newpkt.locPt = pkt.locPt;
+  pkt.dlTyp = 0x0806,
+  pkt.nwProto = 1, 
+  not cache( pkt.nwSrc, any),
+  newpkt.locSw = pkt.locSw,
+  Mac_Learning.switch_has_port(pkt.locSw, newpkt.locPt), // REQUIRED: manual invocation for now
+  not newpkt.locPt = pkt.locPt;
 
 // modify request into reply if we know the mac address.
-//forward(pkt : packet, newpkt : packet) :-
-//pkt.dlTyp = 0x0806,
-//pkt.nwProto = 1, // arp request incoming
-//newpkt.dlTyp = 0x0806,
-//newpkt.nwProto = 2, // arp request outgoing
-//cache ( pkt.nwDst, newpkt.dlSrc ),
-//newpkt.loc = pkt.loc,
-//newpkt.nwDst = pkt.nwSrc,
-//newpkt.dlDst = pkt.dlSrc,
-//newpkt.nwSrc = pkt.nwDst;
+forward(pkt : packet, newpkt : packet) :-
+  pkt.dlTyp = 0x0806,
+  pkt.nwProto = 1, // arp request incoming
+  newpkt.dlTyp = 0x0806,
+  newpkt.nwProto = 2, // arp request outgoing
+  cache ( pkt.nwDst, newpkt.dlSrc ),
+  newpkt.loc = pkt.loc,
+  newpkt.nwDst = pkt.nwSrc,
+  newpkt.dlDst = pkt.dlSrc,
+  newpkt.nwSrc = pkt.nwDst;
 
 // Defer to MAC learning for other packet types
-//forward(pkt : packet, newpkt : packet) :- not pkt.dlTyp = 0x0806, Mac_Learning.forward(pkt, newpkt);
-//forward(pkt : packet, newpkt : packet) :- not pkt.nwProto = 1, not pkt.nwProto = 2, Mac_Learning.forward(pkt, newpkt);
+forward(pkt : packet, newpkt : packet) :- 
+  not pkt.dlTyp = 0x0806, Mac_Learning.forward(pkt, newpkt);
+forward(pkt : packet, newpkt : packet) :- 
+  not pkt.nwProto = 1, not pkt.nwProto = 2, Mac_Learning.forward(pkt, newpkt);
