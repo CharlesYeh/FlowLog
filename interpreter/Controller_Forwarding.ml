@@ -26,7 +26,14 @@ module Controller_Forwarding = struct
 		if debug then print_endline (Type_Helpers.term_to_string (List.assoc str combined));
 		List.assoc str combined;;
 
+    let handle_arp_nwproto (parsedpk : Packet.packet) : int = 
+      match parsedpk.nw with (* fail if ever anything else *)
+        | Arp(Arp.Query (_, ip, _)) -> 1
+        | Arp(Arp.Reply (_, ip, _, _)) -> 2
+        | _ -> failwith "handle_arp_nwproto: expected arp query or reply.";;
+
 	let pkt_to_notif (sw : switchId) (pk : packetIn) : Types.notif_val = 
+	   try
 		if debug then print_endline "starting pkt_to_notif";
 		let pkt_payload = parse_payload pk.input_payload in
 		let isIp = ((dlTyp pkt_payload) = 0x0800) in
@@ -37,11 +44,19 @@ module Controller_Forwarding = struct
 		string_of_int (dlTyp pkt_payload);
 		Int32.to_string (nwSrc pkt_payload);
 		Int32.to_string (nwDst pkt_payload);
-		if isIp then (string_of_int (nwProto pkt_payload)) else "arp"] in
+		(* It is vital to not lose the nwProto field, even for ARP packets. 
+		   OpenFlow smuggles whether the packet is query (1) or reply (2) in that field! 
+		   Yet, new version of ocaml-packet throws an exception if we try to access that field
+		   for an ARP packet... *)
+		if isIp then (string_of_int (nwProto pkt_payload)) else (string_of_int (handle_arp_nwproto pkt_payload))] in
 		(*let _ = if debug then print_endline ("pkt to term list: " ^ (Type_Helpers.list_to_string Type_Helpers.term_to_string ans)) in
 		let _ = if debug then print_endline ("dlTyp: " ^ (string_of_int (dlTyp pkt_payload))) in*)
 		if debug then print_endline "finishing pkt_to_notif";
-		Types.Notif_val(Types.packet_type, terms);;
+		Types.Notif_val(Types.packet_type, terms)
+
+	with 	 
+	 Invalid_argument(x) -> Printf.printf "Invalid_argument in pkt_to_notif: %s\n%!" x; exit(1)
+	| _ -> Printf.printf "unknown exception in pkt_to_notif!\n%!"; exit(1);;
 
 
      let of_pport_to_string (pp: pseudoPort) : string =

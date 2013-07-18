@@ -21,7 +21,7 @@ not pkt.locPt = newpkt.locPt;
 // note this rule is split vs. what appeared in hotsdn
 forward(pkt : packet, newpkt  : packet) :-
 pkt.dlTyp = 0x0806,
-pkt.nwProto = "arp", // change in what ox gives us. now says arp? better have different one for reply!!!
+pkt.nwProto = 1, 
 not cache( pkt.nwSrc, any),
 newpkt.locSw = pkt.locSw,
 Mac_Learning.switch_has_port(pkt.locSw, newpkt.locPt), // REQUIRED: manual invocation for now
@@ -30,7 +30,7 @@ not newpkt.locPt = pkt.locPt;
 // modify request into reply if we know the mac address.
 //forward(pkt : packet, newpkt : packet) :-
 //pkt.dlTyp = 0x0806,
-//pkt.nwProto = "arp", // arp request incoming
+//pkt.nwProto = 1, // arp request incoming
 //newpkt.dlTyp = 0x0806,
 //newpkt.nwProto = 2, // arp request outgoing
 //cache ( pkt.nwDst, newpkt.dlSrc ),
@@ -41,4 +41,4 @@ not newpkt.locPt = pkt.locPt;
 
 // Defer to MAC learning for other packet types
 //forward(pkt : packet, newpkt : packet) :- not pkt.dlTyp = 0x0806, Mac_Learning.forward(pkt, newpkt);
-//forward(pkt : packet, newpkt : packet) :- not pkt.nwProto = "arp", not pkt.nwProto = 2, Mac_Learning.forward(pkt, newpkt);
+//forward(pkt : packet, newpkt : packet) :- not pkt.nwProto = 1, not pkt.nwProto = 2, Mac_Learning.forward(pkt, newpkt);
