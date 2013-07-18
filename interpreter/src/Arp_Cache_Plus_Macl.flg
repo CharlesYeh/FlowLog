@@ -3,11 +3,11 @@ import Mac_Learning;
 module Arp_Cache_Plus_Macl:
 
 // No mobility support here: once learned, always learned.
-//+cache(pkt : packet, ip, mac ) :- 
-//pkt.dlTyp = 0x0806, pkt.nwProto = 2, // arp reply 
++cache(pkt : packet, ip, mac ) :- 
+pkt.dlTyp = 0x0806, pkt.nwProto = 2, // arp reply 
 // why was this line here to begin with?
-//not cache( pkt.nwSrc, any),
-//ip = pkt.nwSrc, mac = pkt.dlSrc;
+not cache( pkt.nwSrc, any),
+ip = pkt.nwSrc, mac = pkt.dlSrc;
 
 // Propagate all arp replies via flooding.
 forward(pkt : packet, newpkt  : packet) :-
@@ -17,16 +17,14 @@ newpkt.locSw = pkt.locSw,
 Mac_Learning.switch_has_port(pkt.locSw, newpkt.locPt), // REQUIRED: manual invocation for now
 not pkt.locPt = newpkt.locPt;
 
-
 // Propagate all arp requests for unlearned addresses
 // note this rule is split vs. what appeared in hotsdn
-//forward(pkt : packet, newpkt  : packet) :-
-//pkt.dlTyp = 0x0806,
-//pkt.nwProto = 1,
-//pkt.nwProto = "arp", // change in what ox gives us. now says arp? better have different one for reply!!!
-//not cache( pkt.nwSrc, any),
-//newpkt.locSw = pkt.locSw,
-//not newpkt.locPt = pkt.locPt;
+forward(pkt : packet, newpkt  : packet) :-
+pkt.dlTyp = 0x0806,
+pkt.nwProto = "arp", // change in what ox gives us. now says arp? better have different one for reply!!!
+not cache( pkt.nwSrc, any),
+newpkt.locSw = pkt.locSw,
+not newpkt.locPt = pkt.locPt;
 
 // modify request into reply if we know the mac address.
 //forward(pkt : packet, newpkt : packet) :-

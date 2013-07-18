@@ -9,18 +9,20 @@ let debug = true;;
 module Xsb = struct
 	
 	(* creates a pair channels for talking to xsb, starts xsb, and returns the channels *)
-	let start_xsb () : out_channel * in_channel =
+	let start_xsb () : out_channel * in_channel * in_channel =
 		let xin_channel, xout_channel, error_channel = Unix.open_process_full "xsb" (Unix.environment ()) in
-		(xout_channel, xin_channel);;
+		(xout_channel, xin_channel, error_channel);;
 
 	let ref_out_ch = ref None;;
 	let ref_in_ch = ref None;;
-	
+	let ref_err_ch = ref None;;
+
 	let get_ch () : out_channel * in_channel = 
 		match !ref_out_ch with
-		| None -> let out_ch, in_ch = start_xsb () in 
+		| None -> let out_ch, in_ch, err_ch = start_xsb () in 
 			let _ = ref_out_ch := Some(out_ch) in
 			let _ = ref_in_ch := Some(in_ch) in
+			let _ = ref_err_ch := Some(err_ch) in
 			(out_ch, in_ch);
 		| Some(out_ch) -> (match !ref_in_ch with
 			|Some(in_ch) -> (out_ch, in_ch);
@@ -31,6 +33,20 @@ module Xsb = struct
 		let out_ch, _ = get_ch () in
 		output_string out_ch "halt.\n";
 		flush out_ch;;
+
+	
+	(* because Tim can't find a non-blocking read similar to read-bytes-avail in Racket,
+	    this halts XSB, then terminates  *)
+	let debug_print_errors_and_exit () : unit =
+	  halt_xsb();	    	    
+	  let errstr = ref "" in
+	  try
+	    while true do
+            errstr := !errstr ^ (String.make 1 (input_char (match !ref_err_ch with 
+                                               | Some(ch) -> ch;
+                                               | _ -> raise (End_of_file))));                      
+	      done
+	  with End_of_file -> Printf.printf "%s\n%!" !errstr; exit(1);;
 
 
 	(* Prints the XSB listings currently asserted to stdout.
@@ -98,11 +114,23 @@ module Xsb = struct
 		let out_ch, in_ch = get_ch () in
 		output_string out_ch (str ^ "\n");
 		flush out_ch;
+		if debug then Printf.printf "query sent...\n%!";
+		(* if get | ?- | ?-[hang w/o newline] expect error in error buffer *)
+
 		(*let first_line = input_line in_ch in
 		if ((ends_with (String.trim first_line) "no") || (ends_with (String.trim first_line) "yes")) then [] else*)
-		let answer = ref [] in
+		let answer = ref [] in		
 		let next_str = ref (input_line in_ch) in
-		(*let _ = print_endline (string_of_bool (ends_with (String.trim !next_str) "no")) in*)
+        
+        (* Do not use this: it won't work. But it is useful for debugging situations with weird XSB output. 
+           Note the debug_print_errors_and_exit() call---catches error case (which has no endline at end of input) *)
+        (*let next_str = ref "" in*)        
+		(*while not (Type_Helpers.ends_with !next_str "\n") do
+		  next_str := (!next_str) ^ (String.make 1 (input_char in_ch));
+		  Printf.printf "next_str=%s\n%!" !next_str;
+		  if (Type_Helpers.ends_with !next_str "| ?- | ?-") then debug_print_errors_and_exit();
+		done;*)
+		
 		let counter = ref 0 in
 		while not (Type_Helpers.ends_with (String.trim !next_str) "no") do
 			if debug then Printf.printf "DEBUG: send_query %s getting response. Line was: %s\n%!" str (!next_str);
