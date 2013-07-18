@@ -15,6 +15,8 @@ pkt.locSw = sw,
 pkt.dlSrc = mac,
 not pkt.locPt = pt;
 
+// Note: We have included implicit "otherwise" FOR NOW.
+// Check was to go in parser. Not yet written. 
 forward(pkt : packet, nwpkt : packet) :-
 learned(pkt.locSw, nwpkt.locPt, pkt.dlDst);
 
