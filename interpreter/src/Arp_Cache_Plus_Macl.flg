@@ -1,6 +1,17 @@
 import Mac_Learning;
 
+// This example is a mess at the moment. We deal with the initial requests fine the FIRST time,
+// but constructing replies isn't working for at least two reasons:
+// (1) OF doesn't allow us to modify the nwProto field. 
+// (2) ARP isn't just based off header fields. Gotta modify the payload. Which means
+// "emit". Which means (at the moment) black-boxes. 
+
+// (To check, use xterm <host> in mininet and the arp -d command to remove local arp entries between pings.)
+
 module Arp_Cache_Plus_Macl:
+
+// todo: mac-request, mac-reply helpers to shorten code.
+// helpers with packet args have not been tested.
 
 // No mobility support here: once learned, always learned.
 +cache(pkt : packet, ip, mac ) :- 
@@ -9,7 +20,8 @@ module Arp_Cache_Plus_Macl:
   //not cache( pkt.nwSrc, any),
   ip = pkt.nwSrc, mac = pkt.dlSrc;
 
-// Propagate all arp replies via flooding.
+// Propagate all arp replies via flooding, and never interfere with a reply.
+// (todo: Test this w/ maclearning)
 forward(pkt : packet, newpkt  : packet) :-
   pkt.dlTyp = 0x0806,
   pkt.nwProto = 2,
@@ -19,10 +31,10 @@ forward(pkt : packet, newpkt  : packet) :-
 
 // Propagate all arp requests for unlearned addresses
 // note this rule is split vs. what appeared in hotsdn
-forward(pkt : packet, newpkt  : packet) :-
+forward(pkt : packet, newpkt : packet) :-
   pkt.dlTyp = 0x0806,
   pkt.nwProto = 1, 
-  not cache( pkt.nwSrc, any),
+  not cache(pkt.nwDst, any),
   newpkt.locSw = pkt.locSw,
   Mac_Learning.switch_has_port(pkt.locSw, newpkt.locPt), // REQUIRED: manual invocation for now
   not newpkt.locPt = pkt.locPt;
@@ -31,10 +43,20 @@ forward(pkt : packet, newpkt  : packet) :-
 forward(pkt : packet, newpkt : packet) :-
   pkt.dlTyp = 0x0806,
   pkt.nwProto = 1, // arp request incoming
+
+  // CANNOT BE DONE IN OPENFLOW 1.0 vvv
   newpkt.dlTyp = 0x0806,
-  newpkt.nwProto = 2, // arp request outgoing
+  newpkt.nwProto = 2, // arp request outgoing  
+  // ... AND WHAT ABOUT THE PAYLOAD? ^^^
+
   cache ( pkt.nwDst, newpkt.dlSrc ),
-  newpkt.loc = pkt.loc,
+
+  // TODO: support this kind of shorthand.
+  //newpkt.loc = pkt.loc,
+  // FOR NOW, explicitly set same port, same switch:
+  newpkt.locSw = pkt.locSw,
+  newpkt.locPt = pkt.locPt,
+
   newpkt.nwDst = pkt.nwSrc,
   newpkt.dlDst = pkt.dlSrc,
   newpkt.nwSrc = pkt.nwDst;
