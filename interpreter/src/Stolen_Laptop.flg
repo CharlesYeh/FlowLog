@@ -25,8 +25,10 @@ type stolen_laptop_found = {mac,swid,time};
 type start_timer = {seconds, id};
 type timer_expired = {id};
 
+// Forward normally
 forward(pkt : packet, newpkt : packet) :- Mac_learning.forward(pkt, newpkt);
 
+// Upon receiving notification from Police, remember the MAC address of the stolen laptop's NIC.
 +stolen(report: stolen_laptop_report, mac) :- report.mac = mac;
 
 // TODO
@@ -37,30 +39,25 @@ forward(pkt : packet, newpkt : packet) :- Mac_learning.forward(pkt, newpkt);
 // Obvious room for improvement.
 BBpolice(pkt : packet, found: stolen_laptop_found) :- 
   stolen(pkt.dlSrc), found.mac = pkt.dlSrc, found.swid = pkt.locSw, BBTimer.time(found.time),
-  not ratelim(found.mac, any);
+  not ratelim(found.mac);
 
-// Rate limit spam of police tipline
-// interesting problem here: need same nonce. but nonce not generated until AFTER notifications fire!
-// so there is a delay of one packet...
-// PARSER: can't use packet for packet name.
-// LACK OF ERR MSG: Timer vs. BBTimer should say unknown module. But silently fails
-+ratelim(pkt : packet, mac, nonce) :- not ratelim(mac, any), BBTimer.nonce(nonce), pkt.dlSrc=mac;
-// Need to prevent this from firing AGAIN and AGAIN. Use fact that +/- after notifs
-BBtimer(pkt : packet, st: start_timer) :- not timersent(nonce), ratelim(pkt.dlSrc, nonce), st.id = nonce, st.seconds = 10;
-+timersent(pkt: packet, nonce) :- ratelim(pkt.dlSrc, nonce); 
+// TODO PARSER: can't use packet for packet name, yet no nice reserved-word error.
+// TODO LACK OF ERR MSG: Timer vs. BBTimer should say unknown module. But silently fails
 
--ratelim(ev : timer_expired, mac, nonce) :- ratelim(mac, nonce), ev.id = nonce;
-// don't need -timersent
+// Rate limit spam of police tipline (10 second timer. longer in real situation, of course)
+// Use mac address as timer ID.
+// Note check for not ratelim(mac) before sending timer notification! This is vital.
++ratelim(pkt : packet, mac) :- not ratelim(mac), pkt.dlSrc=mac;
+BBtimer(pkt : packet, st: start_timer) :- not ratelim(mac), st.id = pkt.dlSrc, st.seconds = 10;
+-ratelim(ev : timer_expired, mac) :- ratelim(mac), ev.id = mac;
 
+
+
+/////////////////////
+// From meeting Friday
 
 // (1) Do flows belong here instead of packets? 
 //  1a: rephrase in terms of flows. (may not be valid flowlog)
 //  1b: what if we have flowtags in the headers? what then?
 
 // (2) for arp cache, can payload manip itself be handled by an internal blackbox?
-
-// possible other solns:
-// -- 2-stage soln (here)
-// -- "closure" event (not the right name) [this is a broader topic]
-// -- for THIS problem, don't nonce and just use mac addr. but doesn't generalize.
-//   ^^ this may go into the flow-level version
