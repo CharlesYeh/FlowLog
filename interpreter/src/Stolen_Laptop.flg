@@ -35,8 +35,8 @@ forward(pkt : packet, newpkt : packet) :- Mac_learning.forward(pkt, newpkt);
 // Can't do this right now; we hit the interpreter's lack of type sensitivity on evaluation
 //-stolen(cancel: stolen_laptop_cancel, mac) :- cancel.mac = mac;
 
-// Will currently call timer for EVERY PACKET, not just stolen ones.
-// Obvious room for improvement.
+// Will currently call time() for EVERY PACKET, not just stolen ones.
+// Obvious room for improvement. 
 BBpolice(pkt : packet, found: stolen_laptop_found) :- 
   stolen(pkt.dlSrc), found.mac = pkt.dlSrc, found.swid = pkt.locSw, BBTimer.time(found.time),
   not ratelim(found.mac);
