@@ -56,6 +56,7 @@ class FlowlogDemo(object):
         # first, the router and its NAT
         topo = FlowlogTopo()
         router = topo.addSwitch('r1-router', dpid="1000000000000001") # dpid is in hex by default
+        return topo
 
         nat = topo.addSwitch('r1-nat', dpid="4000000000000001")
         topo.addLink(router, nat, **linkopts)
@@ -136,10 +137,10 @@ class FlowlogDemo(object):
 
         self.launchNetwork(network, host_cmd, host_cmd_opts)
 
-        bgp_peer = network.getNodeByName('bgp_peer')
-        bgp_peer.cmd('ifconfig bgp_peer-eth0:1 8.0.0.1')
-        bgp_peer.cmd('ifconfig bgp_peer-eth0:2 4.4.0.1')
-        bgp_peer.cmd('python -mSimpleHTTPServer &')
+        #bgp_peer = network.getNodeByName('bgp_peer')
+        #bgp_peer.cmd('ifconfig bgp_peer-eth0:1 8.0.0.1')
+        #bgp_peer.cmd('ifconfig bgp_peer-eth0:2 4.4.0.1')
+        #bgp_peer.cmd('python -mSimpleHTTPServer &')
 
         self.demo(network)
         self.teardownNetwork(network, host_cmd)

@@ -43,7 +43,7 @@ ON startup(ev):
   INSERT (192.168.1.1, be:ef:be:ef:00:01) INTO cached; // BGP peer TODO(adf): should get from ARP!
 
   INSERT (8.0.0.0, 8, 192.168.1.1) INTO routes;
-  INSERT (4.4.0.0, 16, 192.168.1.1) INTO routes;
+//  INSERT (4.4.0.0, 16, 192.168.1.1) INTO routes;
 
 
   // Config for NAT
