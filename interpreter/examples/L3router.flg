@@ -41,7 +41,7 @@ TABLE router_queued(ipaddr);
  ******************************************************************************/
 
 // TODO(adf): need a table which ties "our" nat to this router
-
+/*
 ON ip_packet(pkt):
   DO forward(new) WHERE
     subnets(addr, mask, ANY, new.dlSrc, pkt.locSw, new.locPt, ANY)
@@ -56,7 +56,7 @@ ON ip_packet(pkt):
     and subnets(ANY, ANY, ANY, ANY, pkt.locSw, ANY, ANY) // TODO(adf): only apply to routers
     and pkt.locPt != 1
     and new.locPt = 1; // TODO(adf): should be magic NAT port?
-
+*/
 /*******************************************************************************
  *
  * Per-subnet translators: inbound path
@@ -64,13 +64,13 @@ ON ip_packet(pkt):
  * The inbound path is simple: just pass to the router, which is on port 1
  *
  ******************************************************************************/
-
+/*
 ON ip_packet(pkt):
   DO forward(new) WHERE
     subnets(ANY, ANY, ANY, pkt.dlDst, ANY, ANY, pkt.locSw)
     and pkt.locPt != 1
     and new.locPt = 1;
-
+*/
 /*******************************************************************************
  *
  * Per-subnet translators: outbound path
@@ -84,7 +84,7 @@ ON ip_packet(pkt):
  ******************************************************************************/
 
 // Default path: set dlDst based on ARP cache
-
+/*
 ON ip_packet(pkt):
   DO forward(new) WHERE
     subnets(addr, mask, gwip, ANY, ANY, ANY, pkt.locSw)
@@ -93,9 +93,10 @@ ON ip_packet(pkt):
     and pkt.nwDst != gwip
     and pkt.locPt = 1
     and new.locPt = 2;
-
+*/
 // Alternate path: send an ARP request for IPs we can't translate and queue the pkt
 
+/*
 ON ip_packet(pkt) WHERE subnets(addr, mask, gwip, gwmac, ANY, ANY, pkt.locSw)
                         and pkt.nwDst IN addr/mask
                         and not cached(pkt.nwDst, ANY)
@@ -117,7 +118,7 @@ ON ip_packet(pkt) WHERE subnets(addr, mask, gwip, gwmac, ANY, ANY, pkt.locSw)
     new.arp_spa = 10.10.10.1 and // Controller IP addr (10.10.10.1)
 
     switch_has_port(new.locSw, new.locPt); // REQUIRED? this rule is not compiled TODO(adf): needed???
-
+*/
 
 // with the above physically wired translators, we are trying to achieve
 // sequential composition with what is, logically, this program:
